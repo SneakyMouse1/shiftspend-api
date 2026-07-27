@@ -1,0 +1,15 @@
+meta {
+  name: Check Export Status
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/reports/export/status/:key
+  body: none
+  auth: inherit
+}
+
+params:path {
+  key: 550e8400-e29b-41d4-a716-446655440000
+}

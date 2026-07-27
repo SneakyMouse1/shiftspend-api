@@ -1,0 +1,15 @@
+meta {
+  name: Download Export File
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{base_url}}/reports/export/download/:key
+  body: none
+  auth: inherit
+}
+
+params:path {
+  key: 550e8400-e29b-41d4-a716-446655440000
+}
