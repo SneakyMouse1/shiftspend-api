@@ -23,6 +23,7 @@ return new class extends Migration
             $table->unsignedBigInteger('model_id')->nullable();
             $table->string('ip', 45)->nullable(); // IPv6 max
             $table->text('user_agent')->nullable();
+            $table->json('metadata')->nullable();
             $table->timestamps();
 
             $table->index('user_id');

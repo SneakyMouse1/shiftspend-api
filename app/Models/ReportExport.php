@@ -6,22 +6,22 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class ActivityLog extends Model
+class ReportExport extends Model
 {
     use HasFactory;
 
     protected $fillable = [
+        'key',
         'user_id',
-        'action',
-        'model',
-        'model_id',
-        'ip',
-        'user_agent',
-        'metadata',
+        'status',
+        'format',
+        'file_path',
+        'error',
+        'expires_at',
     ];
 
     protected $casts = [
-        'metadata' => 'array',
+        'expires_at' => 'datetime',
     ];
 
     public function user(): BelongsTo

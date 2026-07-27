@@ -71,3 +71,6 @@ Schedule::call(function () {
             }
         });
 })->daily()->name('process-recurring-transactions')->withoutOverlapping();
+
+Schedule::command('export:cleanup')->hourly();
+

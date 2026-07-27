@@ -55,6 +55,11 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('recurring-transactions', RecurringTransactionController::class);
 
         Route::get('reports', [ReportController::class, 'index']);
-        Route::get('reports/export', [ReportController::class, 'export'])->middleware('throttle:5,1');
+
+        Route::middleware('throttle:5,1')->group(function () {
+            Route::get('reports/export', [ReportController::class, 'export'])->name('api.v1.reports.export');
+            Route::get('reports/export/status/{key}', [ReportController::class, 'exportStatus'])->name('api.v1.reports.export.status');
+            Route::get('reports/export/download/{key}', [ReportController::class, 'exportDownload'])->name('api.v1.reports.export.download');
+        });
     });
 });

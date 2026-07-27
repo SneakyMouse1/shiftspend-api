@@ -5,7 +5,17 @@ meta {
 }
 
 get {
-  url: {{base_url}}/reports/export
+  url: {{base_url}}/reports/export?format=csv&period=last_month
   body: none
   auth: inherit
+}
+
+params:query {
+  format: csv
+  period: last_month
+  ~date_from: 2026-07-01
+  ~date_to: 2026-07-31
+  ~account_id: 1
+  ~category_id: 1
+  ~type: expense
 }

@@ -44,8 +44,8 @@ class AccountService
 
     public function delete(Account $account): void
     {
-        // If account has > 500 transactions, offload deletion to a background queue job.
-        if ($account->transactions()->count() > 500) {
+        // If account has > async limit transactions, offload deletion to a background queue job.
+        if ($account->transactions()->count() > config('thresholds.async_processing_limit')) {
             DeleteAccountJob::dispatch($account);
             DashboardService::clearCache($account->user_id);
 
