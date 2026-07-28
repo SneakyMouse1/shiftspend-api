@@ -14,6 +14,8 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use OpenApi\Attributes as OA;
 
+use Illuminate\Support\Facades\Storage;
+
 class AuthController extends Controller
 {
     #[OA\Post(
@@ -160,7 +162,9 @@ class AuthController extends Controller
         tags: ['Auth'],
         security: [['bearerAuth' => []]],
         responses: [
-            new OA\Response(response: 200, description: 'Successfully logged out',
+            new OA\Response(
+                response: 200,
+                description: 'Successfully logged out',
                 content: new OA\JsonContent(properties: [
                     new OA\Property(property: 'data', properties: [
                         new OA\Property(property: 'message', type: 'string', example: 'Logged out successfully.'),
@@ -185,7 +189,9 @@ class AuthController extends Controller
         tags: ['Auth'],
         security: [['bearerAuth' => []]],
         responses: [
-            new OA\Response(response: 200, description: 'User profile',
+            new OA\Response(
+                response: 200,
+                description: 'User profile',
                 content: new OA\JsonContent(properties: [
                     new OA\Property(property: 'data', properties: [
                         new OA\Property(property: 'id', type: 'integer', example: 1),
@@ -230,14 +236,26 @@ class AuthController extends Controller
     {
         $validated = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
-            'avatar' => ['sometimes', 'nullable', 'string', 'max:500'],
+            'avatar'   => ['sometimes', 'nullable', 'file', 'image', 'max:5120'], // 5 Mb
             'settings' => ['sometimes', 'array'],
         ]);
 
-        $request->user()->update($validated);
+        $user = $request->user();
+
+        // SAVING AVATAR
+        if ($request->hasFile('avatar')) {
+            if ($user->avatar && str_contains($user->avatar, '/storage/')) {
+                $oldPath = str_replace(asset('storage/'), '', $user->avatar);
+                Storage::disk('public')->delete($oldPath);
+            }
+            $path = $request->file('avatar')->store('avatars', 'public');
+            $validated['avatar'] = asset('storage/' . $path);
+        }
+
+        $user->update($validated);
 
         return response()->json([
-            'data' => new UserResource($request->user()->fresh()),
+            'data' => new UserResource($user->fresh()),
         ]);
     }
 
@@ -257,7 +275,9 @@ class AuthController extends Controller
             )
         ),
         responses: [
-            new OA\Response(response: 200, description: 'Account deleted successfully',
+            new OA\Response(
+                response: 200,
+                description: 'Account deleted successfully',
                 content: new OA\JsonContent(properties: [
                     new OA\Property(property: 'data', properties: [
                         new OA\Property(property: 'message', type: 'string', example: 'Account deleted successfully.'),
