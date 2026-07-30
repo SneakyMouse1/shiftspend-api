@@ -15,6 +15,7 @@ class ReportExport extends Model
         'user_id',
         'status',
         'format',
+        'period',
         'file_path',
         'error',
         'expires_at',

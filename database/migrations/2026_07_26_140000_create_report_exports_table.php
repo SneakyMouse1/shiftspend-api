@@ -17,6 +17,7 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->string('status'); // pending, processing, done, failed
             $table->string('format'); // csv, excel, pdf
+            $table->string('period')->nullable();
             $table->string('file_path')->nullable();
             $table->text('error')->nullable();
             $table->timestamp('expires_at');
