@@ -1,22 +1,21 @@
-FROM php:8.3-fpm
+FROM php:8.4-fpm
+
+# Set Composer environment variables
+ENV COMPOSER_ALLOW_SUPERUSER=1
+ENV COMPOSER_MEMORY_LIMIT=-1
 
 # System dependencies
 RUN apt-get update && apt-get install -y \
     git curl libpng-dev libonig-dev libxml2-dev \
     zip unzip libzip-dev libicu-dev \
     libfreetype6-dev libjpeg62-turbo-dev \
-    libpq-dev rsync \
+    libpq-dev libgmp-dev rsync \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # PHP extensions layer
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-configure intl \
-    && docker-php-ext-install pdo_mysql pdo_pgsql mbstring exif pcntl bcmath gd zip intl
-
-# Node.js separate layer (needed if asset compilation or vite build is required)
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y nodejs \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    && docker-php-ext-install pdo_mysql pdo_pgsql mbstring exif pcntl bcmath gd zip intl gmp
 
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
@@ -24,18 +23,12 @@ WORKDIR /app
 
 # Install composer dependencies
 COPY composer.json composer.lock ./
-RUN composer install --no-interaction --optimize-autoloader --no-scripts --no-dev
-
-# Install npm dependencies if package.json exists
-COPY package.json package-lock.json* ./
-RUN if [ -f package.json ]; then npm ci || npm install; fi
+RUN composer install --no-interaction --optimize-autoloader --no-scripts --no-dev --ignore-platform-reqs
 
 # Copy application source code
 COPY . .
 
-# Run assets build if script exists & optimize autoloader
-RUN if [ -f package.json ]; then npm run build --if-present; fi \
-    && composer dump-autoload --optimize \
+RUN composer dump-autoload --optimize \
     && chown -R www-data:www-data /app \
     && chmod -R 775 /app/storage /app/bootstrap/cache
 
