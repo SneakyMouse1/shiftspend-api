@@ -1,0 +1,65 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: shiftspend-api-app
+    restart: unless-stopped
+    working_dir: /var/www
+    volumes:
+      - app-data:/var/www
+      - storage-data:/var/www/storage/app/public
+    networks:
+      - coolify
+
+  nginx:
+    build:
+      context: .
+      dockerfile: docker/nginx/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - app
+    volumes:
+      - app-data:/var/www
+      - storage-data:/var/www/storage/app/public
+    networks:
+      - coolify
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nginx.rule=Host(`${COOLIFY_FQDN}`)"
+      - "traefik.http.routers.nginx.entrypoints=http"
+      - "traefik.http.services.nginx.loadbalancer.server.port=80"
+
+  scheduler:
+    image: shiftspend-api-app
+    restart: unless-stopped
+    working_dir: /var/www
+    depends_on:
+      - app
+    volumes:
+      - app-data:/var/www
+      - storage-data:/var/www/storage/app/public
+    networks:
+      - coolify
+    command: ["/bin/sh", "-c", "sleep 30 && while true; do php artisan schedule:run --no-interaction >> /dev/null 2>&1; sleep 60; done"]
+
+  worker:
+    image: shiftspend-api-app
+    restart: unless-stopped
+    working_dir: /var/www
+    depends_on:
+      - app
+    volumes:
+      - app-data:/var/www
+      - storage-data:/var/www/storage/app/public
+    networks:
+      - coolify
+    command: ["php", "artisan", "queue:work", "--tries=3", "--timeout=90"]
+
+networks:
+  coolify:
+    external: true
+
+volumes:
+  app-data:
+  storage-data:
