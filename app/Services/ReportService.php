@@ -133,7 +133,7 @@ class ReportService
             'previous_month' => [$now->copy()->subMonth()->startOfMonth()->toDateString(), $now->copy()->subMonth()->endOfMonth()->toDateString()],
             '3_months'       => [$now->copy()->subMonths(3)->toDateString(), $now->copy()->toDateString()],
             '6_months'       => [$now->copy()->subMonths(6)->toDateString(), $now->copy()->toDateString()],
-            '1_year'         => [$now->copy()->subYear()->toDateString(), $now->copy()->toDateString()],
+            'this_year', '1_year' => [$now->copy()->startOfYear()->toDateString(), $now->copy()->toDateString()],
             default          => [null, null],
         };
     }

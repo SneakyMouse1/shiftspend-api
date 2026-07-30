@@ -121,6 +121,8 @@ class ReportController extends Controller
             return response()->json(['error' => 'Unauthenticated'], 401);
         }
 
+        @ini_set('memory_limit', '512M');
+
         $format = (string) $request->validated('format');
         $filters = $request->validated();
 
