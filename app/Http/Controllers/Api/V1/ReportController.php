@@ -176,11 +176,14 @@ class ReportController extends Controller
                 Storage::disk($disk)->put($filePath, $raw);
             }
 
+            $periodLabel = $this->formatPeriodLabel($filters);
+
             ReportExport::create([
                 'key'        => $exportKey,
                 'user_id'    => $user->id,
                 'status'     => 'done',
                 'format'     => $format,
+                'period'     => $periodLabel,
                 'file_path'  => $filePath,
                 'expires_at' => now()->addHours($ttlHours),
             ]);
@@ -198,6 +201,7 @@ class ReportController extends Controller
             'user_id'    => $user->id,
             'status'     => 'pending',
             'format'     => $format,
+            'period'     => $this->formatPeriodLabel($filters),
             'expires_at' => now()->addHours($ttlHours),
         ]);
 
@@ -239,6 +243,7 @@ class ReportController extends Controller
                     'id'                  => $export->id,
                     'key'                 => $export->key,
                     'format'              => $export->format,
+                    'period'              => $export->period ?? 'Report',
                     'status'              => $export->status,
                     'file_size'           => $sizeBytes,
                     'file_size_formatted' => $sizeFormatted,
@@ -396,5 +401,21 @@ class ReportController extends Controller
         $filename = "transactions_report_{$key}.{$ext}";
 
         return Storage::disk($disk)->download($export->file_path, $filename);
+    }
+
+    private function formatPeriodLabel(array $filters): string
+    {
+        $period = $filters['period'] ?? 'last_month';
+        return match ($period) {
+            'last_month'          => 'This Month',
+            'previous_month'      => 'Last Month',
+            '3_months'            => '3 Months',
+            '6_months'            => '6 Months',
+            'this_year', '1_year' => 'This Year',
+            'custom'              => isset($filters['date_from'], $filters['date_to'])
+                ? "{$filters['date_from']} – {$filters['date_to']}"
+                : 'Custom Period',
+            default               => ucfirst(str_replace('_', ' ', $period)),
+        };
     }
 }
