@@ -59,6 +59,8 @@ Route::prefix('v1')->group(function () {
         Route::middleware('throttle:30,1')->group(function () {
             Route::get('reports/export', [ReportController::class, 'export'])->name('api.v1.reports.export');
         });
+        Route::get('reports/exports', [ReportController::class, 'exportsList'])->name('api.v1.reports.exports.list');
+        Route::delete('reports/exports/{key}', [ReportController::class, 'deleteExport'])->name('api.v1.reports.exports.delete');
         Route::get('reports/export/status/{key}', [ReportController::class, 'exportStatus'])->name('api.v1.reports.export.status');
         Route::get('reports/export/download/{key}', [ReportController::class, 'exportDownload'])->name('api.v1.reports.export.download');
     });
