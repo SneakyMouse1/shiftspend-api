@@ -56,10 +56,10 @@ Route::prefix('v1')->group(function () {
 
         Route::get('reports', [ReportController::class, 'index']);
 
-        Route::middleware('throttle:5,1')->group(function () {
+        Route::middleware('throttle:30,1')->group(function () {
             Route::get('reports/export', [ReportController::class, 'export'])->name('api.v1.reports.export');
-            Route::get('reports/export/status/{key}', [ReportController::class, 'exportStatus'])->name('api.v1.reports.export.status');
-            Route::get('reports/export/download/{key}', [ReportController::class, 'exportDownload'])->name('api.v1.reports.export.download');
         });
+        Route::get('reports/export/status/{key}', [ReportController::class, 'exportStatus'])->name('api.v1.reports.export.status');
+        Route::get('reports/export/download/{key}', [ReportController::class, 'exportDownload'])->name('api.v1.reports.export.download');
     });
 });

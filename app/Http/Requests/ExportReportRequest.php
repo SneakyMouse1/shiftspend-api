@@ -33,7 +33,7 @@ class ExportReportRequest extends FormRequest
 
         return [
             'format' => ['required', 'string', 'in:csv,excel,pdf'],
-            'period' => ['nullable', 'string', 'in:last_month,previous_month,3_months,6_months,1_year,custom'],
+            'period' => ['nullable', 'string', 'in:last_month,previous_month,3_months,6_months,1_year,this_year,custom'],
             'date_from' => ['nullable', 'date_format:Y-m-d', 'required_if:period,custom'],
             'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from', 'required_if:period,custom'],
             'account_id' => ['nullable', 'integer', Rule::exists('accounts', 'id')->where('user_id', $userId)],

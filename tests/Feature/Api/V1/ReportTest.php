@@ -351,13 +351,13 @@ class ReportTest extends TestCase
         Storage::disk('local')->assertMissing($filePath);
     }
 
-    public function test_report_export_rate_limiting_triggers_at_6th_request()
+    public function test_report_export_rate_limiting_triggers_at_31st_request()
     {
         $user = User::factory()->create();
 
         RateLimiter::clear('reports/export:127.0.0.1');
 
-        for ($i = 0; $i < 5; $i++) {
+        for ($i = 0; $i < 30; $i++) {
             $response = $this->actingAs($user)
                 ->getJson('/api/v1/reports/export?format=csv&period=last_month');
 
