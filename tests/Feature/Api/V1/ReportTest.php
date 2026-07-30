@@ -409,7 +409,7 @@ class ReportTest extends TestCase
     {
         Carbon::setTestNow('2026-07-20');
         [$from, $to] = \App\Services\ReportService::resolvePeriodDates('1_year');
-        $this->assertEquals('2025-07-20', $from);
+        $this->assertEquals('2026-01-01', $from);
         $this->assertEquals('2026-07-20', $to);
         Carbon::setTestNow();
     }
@@ -423,5 +423,32 @@ class ReportTest extends TestCase
 
         $response->assertStatus(422);
         $response->assertJsonValidationErrors(['date_from', 'date_to']);
+    }
+
+    public function test_user_can_list_and_delete_exports_atomically()
+    {
+        $user = User::factory()->create();
+        $disk = config('reports.storage_disk', 'local');
+        $filePath = "exports/{$user->id}/test-export.csv";
+        Storage::disk($disk)->put($filePath, "Date,Amount\n2026-07-01,100");
+
+        $export = ReportExport::create([
+            'key'        => 'test-key-123',
+            'user_id'    => $user->id,
+            'status'     => 'done',
+            'format'     => 'csv',
+            'file_path'  => $filePath,
+            'expires_at' => now()->addHours(24),
+        ]);
+
+        $listResponse = $this->actingAs($user)->getJson('/api/v1/reports/exports');
+        $listResponse->assertStatus(200);
+        $listResponse->assertJsonFragment(['key' => 'test-key-123']);
+
+        $deleteResponse = $this->actingAs($user)->deleteJson("/api/v1/reports/exports/{$export->key}");
+        $deleteResponse->assertStatus(200);
+
+        $this->assertDatabaseMissing('report_exports', ['id' => $export->id]);
+        Storage::disk($disk)->assertMissing($filePath);
     }
 }

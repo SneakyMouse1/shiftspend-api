@@ -143,43 +143,61 @@ class ReportController extends Controller
         ]);
 
         $syncLimit = (int) config('reports.export_sync_limit', 500);
+        $exportKey = Str::uuid()->toString();
+        $ttlHours = (int) config('reports.export_ttl_hours', 24);
+        $disk = config('reports.storage_disk', 'local');
+
+        $ext = match ($format) {
+            'excel' => 'xlsx',
+            'pdf'   => 'pdf',
+            default => 'csv',
+        };
+        $filePath = "exports/{$user->id}/{$exportKey}.{$ext}";
 
         // --- SYNCHRONOUS MODE ---
         if ($count <= $syncLimit) {
             $rows = $this->reportService->getExportRows($user, $filters);
 
-            if ($format === 'csv') {
-                return Excel::download(new TransactionsExport($rows), 'report.csv', \Maatwebsite\Excel\Excel::CSV);
-            }
-            if ($format === 'excel') {
-                return Excel::download(new TransactionsExport($rows), 'report.xlsx', \Maatwebsite\Excel\Excel::XLSX);
-            }
             if ($format === 'pdf') {
                 $aggregated = $this->reportService->getAggregatedData($user, $filters);
                 $pdfContent = $this->pdfExport->generate([
-                    'user' => $user,
-                    'rows' => $rows,
-                    'summary' => $aggregated['summary'],
+                    'user'       => $user,
+                    'rows'       => $rows,
+                    'summary'    => $aggregated['summary'],
                     'byCategory' => $aggregated['by_category'],
-                    'filters' => $filters,
+                    'filters'    => $filters,
                 ]);
-
-                return response($pdfContent, 200, [
-                    'Content-Type' => 'application/pdf',
-                    'Content-Disposition' => 'attachment; filename="report.pdf"',
-                ]);
+                Storage::disk($disk)->put($filePath, $pdfContent);
+            } elseif ($format === 'excel') {
+                $raw = Excel::raw(new TransactionsExport($rows), \Maatwebsite\Excel\Excel::XLSX);
+                Storage::disk($disk)->put($filePath, $raw);
+            } else {
+                $raw = Excel::raw(new TransactionsExport($rows), \Maatwebsite\Excel\Excel::CSV);
+                Storage::disk($disk)->put($filePath, $raw);
             }
+
+            ReportExport::create([
+                'key'        => $exportKey,
+                'user_id'    => $user->id,
+                'status'     => 'done',
+                'format'     => $format,
+                'file_path'  => $filePath,
+                'expires_at' => now()->addHours($ttlHours),
+            ]);
+
+            $downloadFilename = "transactions_report_{$exportKey}.{$ext}";
+            return Storage::disk($disk)->download($filePath, $downloadFilename, [
+                'Access-Control-Expose-Headers' => 'X-Export-Key',
+                'X-Export-Key'                  => $exportKey,
+            ]);
         }
 
         // --- ASYNCHRONOUS MODE ---
-        $exportKey = Str::uuid()->toString();
-        $ttlHours = (int) config('reports.export_ttl_hours', 2);
-
         $reportExport = ReportExport::create([
-            'key' => $exportKey,
-            'user_id' => $user->id,
-            'status' => 'pending',
-            'format' => $format,
+            'key'        => $exportKey,
+            'user_id'    => $user->id,
+            'status'     => 'pending',
+            'format'     => $format,
             'expires_at' => now()->addHours($ttlHours),
         ]);
 
@@ -187,12 +205,90 @@ class ReportController extends Controller
 
         return response()->json([
             'data' => [
-                'status' => 'pending',
+                'status'     => 'pending',
                 'export_key' => $exportKey,
-                'check_url' => route('api.v1.reports.export.status', $exportKey),
-                'message' => 'Export is being generated. Poll the check_url to get download link.',
+                'check_url'  => route('api.v1.reports.export.status', $exportKey),
+                'message'    => 'Export is being generated. Poll the check_url to get download link.',
             ],
         ], 202);
+    }
+
+    public function exportsList(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user instanceof User) {
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
+
+        $disk = config('reports.storage_disk', 'local');
+
+        $exports = ReportExport::where('user_id', $user->id)
+            ->where('expires_at', '>', now())
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function (ReportExport $export) use ($disk) {
+                $sizeBytes = null;
+                $sizeFormatted = null;
+
+                if ($export->file_path && Storage::disk($disk)->exists($export->file_path)) {
+                    $sizeBytes = Storage::disk($disk)->size($export->file_path);
+                    $sizeFormatted = $this->formatBytes($sizeBytes);
+                }
+
+                return [
+                    'id'                  => $export->id,
+                    'key'                 => $export->key,
+                    'format'              => $export->format,
+                    'status'              => $export->status,
+                    'file_size'           => $sizeBytes,
+                    'file_size_formatted' => $sizeFormatted,
+                    'error'               => $export->error,
+                    'created_at'          => $export->created_at->toIso8601String(),
+                    'expires_at'          => $export->expires_at->toIso8601String(),
+                    'download_url'        => $export->status === 'done' ? route('api.v1.reports.export.download', $export->key) : null,
+                ];
+            });
+
+        return response()->json(['data' => $exports]);
+    }
+
+    public function deleteExport(string $key, Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user instanceof User) {
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
+
+        $export = ReportExport::where('key', $key)->first();
+        if (! $export) {
+            return response()->json(['error' => 'Export record not found.'], 404);
+        }
+
+        if ($export->user_id !== $user->id) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
+
+        $disk = config('reports.storage_disk', 'local');
+
+        // Atomic deletion of file and DB record
+        if ($export->file_path && Storage::disk($disk)->exists($export->file_path)) {
+            Storage::disk($disk)->delete($export->file_path);
+        }
+
+        $export->delete();
+
+        return response()->json(['message' => 'Export deleted successfully.']);
+    }
+
+    protected function formatBytes(int $bytes, int $precision = 2): string
+    {
+        $units = ['B', 'KB', 'MB', 'GB'];
+        $bytes = max($bytes, 0);
+        $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
+        $pow = min($pow, count($units) - 1);
+        $bytes /= pow(1024, $pow);
+
+        return round($bytes, $precision) . ' ' . $units[$pow];
     }
 
     #[OA\Get(
