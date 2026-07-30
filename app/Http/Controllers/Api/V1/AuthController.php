@@ -15,6 +15,7 @@ use Illuminate\Validation\ValidationException;
 use OpenApi\Attributes as OA;
 
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rules\Password as PasswordRule;
 
 class AuthController extends Controller
 {
@@ -232,7 +233,7 @@ class AuthController extends Controller
             new OA\Response(response: 422, description: 'Validation error'),
         ]
     )]
-    public function updateProfile(Request $request): JsonResponse
+    public function updateProfile(Request $request): JsonResponse // TATI ADDED SAVING AVATAR
     {
         $validated = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
@@ -299,6 +300,50 @@ class AuthController extends Controller
 
         return response()->json([
             'data' => ['message' => 'Account deleted successfully.'],
+        ]);
+    }
+
+
+    // TATI ADDED TO CHANGE PASSWORD FROM SETTINGS 
+    #[OA\Patch(
+        path: '/api/v1/auth/password',
+        summary: 'Change password for the authenticated user',
+        description: 'Requires current_password confirmation. Revokes all other Sanctum tokens, keeping the current session active.',
+        tags: ['Auth'],
+        security: [['bearerAuth' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['current_password', 'password', 'password_confirmation'],
+                properties: [
+                    new OA\Property(property: 'current_password', type: 'string', format: 'password', example: 'oldSecret123'),
+                    new OA\Property(property: 'password', type: 'string', format: 'password', example: 'newSecret123'),
+                    new OA\Property(property: 'password_confirmation', type: 'string', format: 'password', example: 'newSecret123'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Password changed successfully'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 422, description: 'Wrong current password or validation error'),
+        ]
+    )]
+    public function changePassword(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'current_password' => ['required', 'current_password'],
+            'password' => ['required', 'confirmed', PasswordRule::defaults()],
+        ]);
+
+        $user = $request->user();
+        $user->update(['password' => Hash::make($validated['password'])]);
+
+        $user->tokens()
+            ->where('id', '!=', $request->user()->currentAccessToken()->id)
+            ->delete();
+
+        return response()->json([
+            'data' => ['message' => 'Password changed successfully.'],
         ]);
     }
 }

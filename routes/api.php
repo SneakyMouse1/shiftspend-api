@@ -31,6 +31,8 @@ Route::prefix('v1')->group(function () {
             Route::get('profile', [AuthController::class, 'profile']);
             Route::patch('profile', [AuthController::class, 'updateProfile']);
 
+            Route::patch('password', [AuthController::class, 'changePassword']); // TATI ADDED TO CHANGE PASSWORD FROM SETTINGS
+
             // Account deletion — requires current_password confirmation
             Route::delete('account', [AuthController::class, 'deleteAccount']);
         });
