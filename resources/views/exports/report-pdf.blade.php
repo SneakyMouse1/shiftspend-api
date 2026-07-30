@@ -21,7 +21,7 @@
         .header {
             border-bottom: 2px solid #0f172a;
             padding-bottom: 12px;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
         }
 
         .header table {
@@ -48,7 +48,7 @@
         }
 
         .section-title {
-            font-size: 13px;
+            font-size: 12px;
             font-weight: bold;
             color: #0f172a;
             margin-top: 18px;
@@ -109,7 +109,7 @@
             font-weight: bold;
             font-size: 10px;
             text-align: left;
-            padding: 6px 8px;
+            padding: 7px 8px;
             text-transform: uppercase;
         }
 
@@ -117,18 +117,23 @@
             padding: 6px 8px;
             border-bottom: 1px solid #e2e8f0;
             font-size: 10px;
+            vertical-align: middle;
         }
 
         table.data-table tr:nth-child(even) {
             background-color: #f8fafc;
         }
 
+        .text-left {
+            text-align: left !important;
+        }
+
         .text-right {
-            text-align: right;
+            text-align: right !important;
         }
 
         .text-center {
-            text-align: center;
+            text-align: center !important;
         }
 
         .badge-income {
@@ -147,13 +152,63 @@
         }
 
         .filters-box {
-            background-color: #f1f5f9;
-            border: 1px solid #cbd5e1;
-            padding: 8px 10px;
-            border-radius: 4px;
-            font-size: 9px;
-            color: #475569;
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 6px 10px;
+            border-radius: 6px;
             margin-bottom: 15px;
+        }
+
+        .filters-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0;
+            padding: 0;
+        }
+
+        .filters-title-cell {
+            width: 1%;
+            white-space: nowrap;
+            padding-right: 8px;
+            vertical-align: middle;
+            border: none !important;
+            background: transparent !important;
+        }
+
+        .filters-title-text {
+            display: inline-block;
+            vertical-align: middle;
+            font-weight: bold;
+            color: #475569;
+            text-transform: uppercase;
+            font-size: 9px;
+            letter-spacing: 0.5px;
+            padding: 4px 0;
+            line-height: 1.2;
+        }
+
+        .filters-chips-cell {
+            vertical-align: middle;
+            border: none !important;
+            background: transparent !important;
+        }
+
+        .filter-chip {
+            display: inline-block;
+            vertical-align: middle;
+            background-color: #ffffff;
+            border: 1px solid #cbd5e1;
+            padding: 3px 8px;
+            border-radius: 4px;
+            margin-right: 6px;
+            font-size: 9.5px;
+            color: #0f172a;
+            line-height: 1.2;
+        }
+
+        .filter-chip strong {
+            color: #64748b;
+            font-weight: 600;
         }
 
         .footer {
@@ -187,14 +242,76 @@
         </table>
     </div>
 
-    @if (!empty($filters))
+    @php
+        $formattedFilters = [];
+
+        if (!empty($filters['period'])) {
+            $p = $filters['period'];
+            $periodLabel = match ($p) {
+                'this_month' => 'This Month',
+                'last_month', 'previous_month' => 'Last Month',
+                '3_months' => 'Last 3 Months',
+                '6_months' => 'Last 6 Months',
+                'this_year', '1_year' => 'This Year',
+                'custom' => 'Custom Period',
+                default => ucfirst(str_replace('_', ' ', $p)),
+            };
+            $formattedFilters['Period'] = $periodLabel;
+        }
+
+        if (!empty($filters['date_from'])) {
+            $formattedFilters['Date From'] = $filters['date_from'];
+        }
+
+        if (!empty($filters['date_to'])) {
+            $formattedFilters['Date To'] = $filters['date_to'];
+        }
+
+        if (!empty($filters['type'])) {
+            $formattedFilters['Type'] = ucfirst($filters['type']);
+        }
+
+        if (!empty($filters['currency_code'])) {
+            $formattedFilters['Currency'] = strtoupper($filters['currency_code']);
+        }
+
+        $ignoreKeys = [
+            'format',
+            'export',
+            'page',
+            'per_page',
+            'sort',
+            'order',
+            'period',
+            'date_from',
+            'date_to',
+            'type',
+            'currency_code',
+        ];
+        foreach ($filters as $k => $v) {
+            if (!in_array($k, $ignoreKeys) && !empty($v)) {
+                $label = ucfirst(str_replace('_', ' ', $k));
+                $formattedFilters[$label] = is_array($v) ? implode(', ', $v) : $v;
+            }
+        }
+    @endphp
+
+    @if (!empty($formattedFilters))
         <div class="filters-box">
-            <strong>Applied Filters:</strong>
-            <br>
-            @foreach ($filters as $k => $v)
-                <span style="margin-right: 12px;"><strong>{{ $k }}:</strong>
-                    {{ is_array($v) ? implode(', ', $v) : $v }}</span>
-            @endforeach
+            <table class="filters-table">
+                <tr>
+                    <td class="filters-title-cell">
+                        <span class="filters-title-text">Applied Filters:</span>
+                    </td>
+                    <td class="filters-chips-cell">
+                        @foreach ($formattedFilters as $label => $val)
+                            <span class="filter-chip">
+                                <strong>{{ $label }}:</strong> {{ $val }}
+                            </span>
+                        @endforeach
+                    </td>
+                </tr>
+            </table>
         </div>
     @endif
 
@@ -221,9 +338,9 @@
         <table class="data-table">
             <thead>
                 <tr>
-                    <th>Category</th>
-                    <th class="text-center">Count</th>
-                    <th class="text-right">Total Amount</th>
+                    <th style="width: 50%;">Category</th>
+                    <th style="width: 20%;" class="text-center">Count</th>
+                    <th style="width: 30%;" class="text-right">Total Amount</th>
                 </tr>
             </thead>
             <tbody>
@@ -242,12 +359,12 @@
     <table class="data-table">
         <thead>
             <tr>
-                <th style="width: 12%;">Date</th>
-                <th style="width: 10%;">Type</th>
-                <th style="width: 18%;">Category</th>
+                <th style="width: 13%;">Date</th>
+                <th style="width: 11%;">Type</th>
+                <th style="width: 20%;">Category</th>
                 <th style="width: 18%;">Account</th>
-                <th style="width: 27%;">Comment</th>
-                <th style="width: 15%;" class="text-right">Amount</th>
+                <th style="width: 22%;">Comment</th>
+                <th style="width: 16%;" class="text-right">Amount</th>
             </tr>
         </thead>
         <tbody>

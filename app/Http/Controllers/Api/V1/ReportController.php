@@ -398,7 +398,7 @@ class ReportController extends Controller
             default => 'csv',
         };
 
-        $filename = "transactions_report_{$key}.{$ext}";
+        $filename = "shiftspend_report_{$key}.{$ext}";
 
         return Storage::disk($disk)->download($export->file_path, $filename);
     }
