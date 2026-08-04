@@ -1,4 +1,26 @@
 services:
+  init:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: shiftspend-api-app
+    restart: "no"
+    working_dir: /var/www
+    volumes:
+      - storage-data:/var/www/storage/app/public
+    networks:
+      - coolify
+    command:
+      - /bin/sh
+      - -c
+      - |
+        php artisan migrate --force && \
+        php artisan package:discover --ansi && \
+        php artisan storage:link --force && \
+        php artisan config:cache && \
+        php artisan route:cache && \
+        php artisan view:cache
+
   app:
     build:
       context: .
@@ -6,8 +28,10 @@ services:
     image: shiftspend-api-app
     restart: unless-stopped
     working_dir: /var/www
+    depends_on:
+      init:
+        condition: service_completed_successfully
     volumes:
-      - app-data:/var/www
       - storage-data:/var/www/storage/app/public
     networks:
       - coolify
@@ -18,9 +42,9 @@ services:
       dockerfile: docker/nginx/Dockerfile
     restart: unless-stopped
     depends_on:
-      - app
+      app:
+        condition: service_started
     volumes:
-      - app-data:/var/www
       - storage-data:/var/www/storage/app/public
     networks:
       - coolify
@@ -35,22 +59,22 @@ services:
     restart: unless-stopped
     working_dir: /var/www
     depends_on:
-      - app
+      init:
+        condition: service_completed_successfully
     volumes:
-      - app-data:/var/www
       - storage-data:/var/www/storage/app/public
     networks:
       - coolify
-    command: ["/bin/sh", "-c", "sleep 30 && while true; do php artisan schedule:run --no-interaction >> /dev/null 2>&1; sleep 60; done"]
+    command: ["php", "artisan", "schedule:work"]
 
   worker:
     image: shiftspend-api-app
     restart: unless-stopped
     working_dir: /var/www
     depends_on:
-      - app
+      init:
+        condition: service_completed_successfully
     volumes:
-      - app-data:/var/www
       - storage-data:/var/www/storage/app/public
     networks:
       - coolify
@@ -61,5 +85,4 @@ networks:
     external: true
 
 volumes:
-  app-data:
   storage-data:
