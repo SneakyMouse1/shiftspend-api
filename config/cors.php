@@ -19,9 +19,17 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => [env('FRONTEND_URL', 'http://localhost:5173')],
+    'allowed_origins' => array_filter([
+        env('FRONTEND_URL'),
+        'https://shiftspend.com',
+        'https://www.shiftspend.com',
+        'https://shiftspend-web.vercel.app',
+        'http://localhost:5173',
+    ]),
 
-    'allowed_origins_patterns' => [],
+    'allowed_origins_patterns' => [
+        '#^https://.*\.vercel\.app$#',
+    ],
 
     'allowed_headers' => ['*'],
 
